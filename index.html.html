@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMART HOME - Monitoreo y Control · Grupo 02</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-grad: radial-gradient(circle at top right, #1e293b 0%, #0f172a 60%);
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --ok-bg: #166534;
+      --ok-text: #dcfce7;
+      --alert: #f87171;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --btn-sec: #475569;
+      --btn-sec-hover: #334155;
+      --chip-bg: rgba(15, 23, 42, 0.55);
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-grad: radial-gradient(circle at top right, #e0f2fe 0%, #f1f5f9 65%);
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0284c7;
+      --ok-bg: #dcfce7;
+      --ok-text: #166534;
+      --alert: #dc2626;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --btn-sec: #e2e8f0;
+      --btn-sec-hover: #cbd5e1;
+      --chip-bg: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-grad);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .top {
+      max-width: 900px;
+      margin: 0 auto 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge-group {
+      background: var(--btn);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+    }
+
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: bold;
+      background: var(--btn-sec);
+      color: var(--text);
+    }
+
+    .ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+    }
+
+    .theme-btn {
+      background: var(--btn-sec);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .theme-btn:hover {
+      background: var(--btn-sec-hover);
+    }
+
+    .grid {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .card.alarma-on {
+      border-color: var(--alert);
+      box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25);
+    }
+
+    .val {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 8px 0;
+      color: var(--accent);
+    }
+
+    .val.ok-val {
+      color: #22c55e;
+    }
+
+    .alert {
+      color: var(--alert);
+    }
+
+    small, .muted {
+      color: var(--muted);
+    }
+
+    button.cmd {
+      background: var(--btn);
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 8px;
+      margin-right: 6px;
+    }
+
+    button.cmd:hover {
+      background: var(--btn-hover);
+    }
+
+    button.cmd.sec {
+      background: var(--btn-sec);
+      color: var(--text);
+    }
+
+    button.cmd.sec:hover {
+      background: var(--btn-sec-hover);
+    }
+
+    .autores {
+      max-width: 900px;
+      margin: 20px auto 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .autores-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .autores-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .autor-item {
+      background: var(--chip-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <div class="title-row">
+        <h2 style="margin:0;">🏠 SMART HOME · Dashboard Web</h2>
+        <span class="badge-group">👥 GRUPO 02</span>
+      </div>
+      <small>📡 Conectado a Wokwi vía MQTT (<code>smarthome/g02</code>) · ⚡ ESP32 + IoT</small>
+    </div>
+    <div class="controls-top">
+      <div id="connStatus" class="status">⏳ Conectando...</div>
+      <button id="themeBtn" class="theme-btn" type="button" onclick="toggleTheme()">☀️ Modo Claro</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div>🔐 01 · ACCESO (Servo)</div>
+      <div id="puertaVal" class="val">🔒 CERRADA (0°)</div>
+      <button class="cmd" onclick="enviarComando('ABRIR_PUERTA')">🚪 Abrir Puerta</button>
+    </div>
+
+    <div id="segCard" class="card">
+      <div>🛡️ 02 · SEGURIDAD (PIR / Buzzer)</div>
+      <div id="alarmaVal" class="val ok-val">✅ NORMAL</div>
+      <small id="buzzerTxt">🔇 Buzzer: Inactivo</small>
+    </div>
+
+    <div class="card">
+      <div>💡 03 · ILUMINACIÓN (LDR / LED)</div>
+      <div id="luzVal" class="val">🌑 APAGADA</div>
+      <small>☀️ LDR: <span id="ldrVal">--</span></small><br/>
+      <button class="cmd" onclick="enviarComando('TOGGLE_LUZ')">🔦 Alternar Luz</button>
+      <button class="cmd sec" onclick="enviarComando('AUTO_LUZ')">🤖 Modo Auto</button>
+    </div>
+
+    <div class="card">
+      <div>🌡️ 04 · AMBIENTE (DHT)</div>
+      <div id="tempVal" class="val">-- °C</div>
+      <div>💧 Humedad: <b id="humVal">-- %</b></div>
+    </div>
+  </div>
+
+  <div class="autores">
+    <div class="autores-header">
+      <span>🎓 Integrantes del Proyecto · Grupo 02</span>
+      <small>Proyecto SMART HOME</small>
+    </div>
+    <div class="autores-list">
+      <div class="autor-item">🛠️ vargas flores santiago miguel</div>
+      <div class="autor-item">🛡️ Perez Santos Marco Andre</div>
+      <div class="autor-item">💡 Arismendiz Maza Dani Daniel</div>
+      <div class="autor-item">🔐 ALFONSO GABRIEL REYES SAMANAMUD</div>
+    </div>
+  </div>
+
+  <script>
+    const TOPIC_STATE = "smarthome/g02/estado";
+    const TOPIC_CMD   = "smarthome/g02/comando";
+    const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+
+    const statusEl = document.getElementById("connStatus");
+    const themeBtn = document.getElementById("themeBtn");
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("smarthome_theme", theme);
+      if (theme === "dark") {
+        themeBtn.textContent = "☀️ Modo Claro";
+      } else {
+        themeBtn.textContent = "🌙 Modo Oscuro";
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme");
+      applyTheme(current === "dark" ? "light" : "dark");
+    }
+
+    applyTheme(localStorage.getItem("smarthome_theme") || "dark");
+
+    client.on("connect", () => {
+      statusEl.textContent = "🟢 En línea con Wokwi";
+      statusEl.className = "status ok";
+      client.subscribe(TOPIC_STATE);
+    });
+
+    client.on("offline", () => {
+      statusEl.textContent = "🔴 Desconectado";
+      statusEl.className = "status";
+    });
+
+    client.on("message", (topic, message) => {
+      if (topic !== TOPIC_STATE) return;
+      const d = JSON.parse(message.toString());
+
+      const puertaEl = document.getElementById("puertaVal");
+      puertaEl.textContent = d.puerta ? "🔓 ABIERTA (90°)" : "🔒 CERRADA (0°)";
+      puertaEl.className = d.puerta ? "val ok-val" : "val";
+
+      const alarmaEl = document.getElementById("alarmaVal");
+      const segCard = document.getElementById("segCard");
+      alarmaEl.textContent = d.alarma ? "🚨 ¡INTRUSO!" : "✅ NORMAL";
+      alarmaEl.className = d.alarma ? "val alert" : "val ok-val";
+      segCard.className = d.alarma ? "card alarma-on" : "card";
+      document.getElementById("buzzerTxt").textContent = "🔊 Buzzer: " + (d.alarma ? "SONANDO" : "🔇 Inactivo");
+
+      const luzEl = document.getElementById("luzVal");
+      luzEl.textContent = d.luz ? "💡 ENCENDIDA" : "🌑 APAGADA";
+      luzEl.className = d.luz ? "val ok-val" : "val";
+      document.getElementById("ldrVal").textContent = d.ldr + (d.manualLuz ? " (🖐️ Manual)" : " (🤖 Auto)");
+
+      document.getElementById("tempVal").textContent = "🌡️ " + Number(d.temp).toFixed(1) + " °C";
+      document.getElementById("humVal").textContent = Number(d.hum).toFixed(1) + " %";
+    });
+
+    function enviarComando(cmd) {
+      client.publish(TOPIC_CMD, cmd);
+    }
+  </script>
+</body>
+</html>
